@@ -1,6 +1,5 @@
 
 #----------- MODEL GOES HERE -----------#
-import gzip
 import re
 import numpy as np
 import pandas as pd
@@ -56,41 +55,6 @@ top_products_per_category = {
     'bath': product_ids_per_category[3],
 }
 
-# # hard coding product subset booooo
-# kitchen_products = ['B0030HRU26',
-#  'B006BA7MM2',
-#  'B00COCD6TO',
-#  'B00DUHACEE',
-#  'B00EIK7ZW4',
-#  'B00ESHDGOI',
-#  'B00FMJDJ5C',
-#  'B00HHLNRVE',
-#  'B00ICPJ3GM',
-#  'B00IFRZVQI',
-#  'B00IT26M8K',
-#  'B00IY0J536',
-#  'B00J93MQ6U',
-#  'B00JMAAFW2',
-#  'B00JR39AUM',
-#  'B00KBQ1OHQ']
-# vacuum_products = ['B0006HUYGM', 'B007JN6MQC', 'B00EJQQRH6', 'B00IOEFBKS',
-#        'B0091YYUAM', 'B001J4ZOAW', 'B0056B4EZK', 'B002IPHBNE',
-#        'B000AS9IIC', 'B002D5JCXG']
-# storage_products = ['B0013CAWKM', 'B00383O2UU', 'B004FNBWQ4', 'B00CG4IX52',
-#        'B000GPVDLE', 'B000IVRTBO', 'B004R963K6', 'B0027P9516',
-#        'B005OQFLM2', 'B000A68E48']
-# bath_products = ['B00E9CQX4M', 'B002VK7D2K', 'B002MK6QKO', 'B003JTCAHK',
-#        'B001BVQJ7A', 'B00472O4YK', 'B001T4ZAX8', 'B000FGCVZQ',
-#        'B001T4ZAX8', 'B001RRG5VI']
-
-# products_in_categories = {
-#     'kitchen': kitchen_products,
-#     'vacuum': vacuum_products,
-#     'storage': storage_products,
-#     'bath': bath_products
-# }
-
-
 def hybrid_recommender(product_id_list, original_data=reviews20, n=10, ratio=0.7):
     
     # adding new_user's product_id_list into original data
@@ -116,14 +80,13 @@ def hybrid_recommender(product_id_list, original_data=reviews20, n=10, ratio=0.7
     user_predictions = pd.DataFrame(data=0, index=set(updated_data['asin']), columns=['uucf','svd'])
     
     # getting predictions per item
- 
     for item in set(updated_data['asin']):
         user_predictions.loc[item,'uucf'] = uucf.predict('new_user',item).est
         user_predictions.loc[item,'svd'] = svd.predict('new_user',item).est
          
     user_recommendations = []
     
-    # to get uucf predictions
+    # get uucf predictions
     user_predictions.sort_values(by='uucf', ascending=False, inplace=True)
     for item_id in user_predictions.index:
         if len(user_recommendations) == (n * ratio):
@@ -132,7 +95,7 @@ def hybrid_recommender(product_id_list, original_data=reviews20, n=10, ratio=0.7
             if item_id not in (user_recommendations or product_id_list):
                 user_recommendations.append(item_id)
     
-    # to get svd predictions
+    # get svd predictions
     user_predictions.sort_values(by='svd', ascending=False, inplace=True)
     for item_id in user_predictions.index:
         if len(user_recommendations) == n:
@@ -144,11 +107,6 @@ def hybrid_recommender(product_id_list, original_data=reviews20, n=10, ratio=0.7
     user_recommendations = [{'id':item_id, 'name': product_lookup[item_id], 'imgurl': imgurl_lookup[item_id]} for item_id in user_recommendations]
     
     return user_recommendations
-
-# return hybrid_recommender(['B000IVAJE8', 'B00H5F3GRW', 'B0002IES80', 'B00CA5FFX0', 'B003PBHGHG'], 
-#                          reviews20, 
-#                          10, 
-#                          0.7))
 
 #----------- ROUTES GOES HERE -----------#
 import flask
@@ -171,14 +129,6 @@ def select_products():
     'storage': product_ids_per_category[2],
     'bath': product_ids_per_category[3],
     }
-
-    # products_in_categories = {
-    #     'kitchen': kitchen_products,
-    #     'vacuum': vacuum_products,
-    #     'storage': storage_products,
-    #     'bath': bath_products
-    # }
-
 
     global_product_catalog = {}
 
