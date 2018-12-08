@@ -3,6 +3,11 @@ select {
     height: 33px;
 }
 
+.header-container {
+    padding-top: 25px;
+    padding-bottom: 25px;
+}
+
 .add-product-container {
     margin-bottom: 5px;
 }

@@ -7,12 +7,7 @@ import pandas as pd
 from surprise import Reader, Dataset, KNNWithMeans, SVD
 
 # loading in reviews dataset
-reviews20 = pd.read_csv('./dataset/reviews20.csv')
-
-# # getting top 100 products
-# top100 = (reviews20.groupby('asin')
-#                    .count()['overall']
-#                    .sort_values(ascending=False).index[:10])
+reviews20 = pd.read_csv('./dataset/reviews20reducedpre.csv')
 
 # loading in metadata dataset
 metadata = pd.read_csv('./dataset/home-kitchen-metadata.csv')
@@ -45,14 +40,14 @@ ranked = reviews20_cat.groupby(['cat_2','asin']).count()['overall'].sort_values(
 
 # getting top n products from each category
 def get_products_subset(counts, n):
-    kitchen_products = list(counts.loc['Kitchen & Dining'][:n].index)
-    vacuum_products = list(counts.loc['Vacuums & Floor Care'][:n].index)
-    storage_products = list(counts.loc['Storage & Organization'][:n].index)
-    bath_products = list(counts.loc['Bath'][:n].index)
+    kitchen_products = np.random.choice(list(counts.loc['Kitchen & Dining'][:n].index), 20, replace=False)
+    vacuum_products = np.random.choice(list(counts.loc['Vacuums & Floor Care'][:n].index), 7, replace=False)
+    storage_products = np.random.choice(list(counts.loc['Storage & Organization'][:n].index), 15, replace=False)
+    bath_products = np.random.choice(list(counts.loc['Bath'][:n].index), 15, replace=False)
     
     return kitchen_products, vacuum_products, storage_products, bath_products
 
-product_ids_per_category = get_products_subset(ranked, 10)
+product_ids_per_category = get_products_subset(ranked, 50)
 
 top_products_per_category = {
     'kitchen': product_ids_per_category[0],
@@ -60,6 +55,41 @@ top_products_per_category = {
     'storage': product_ids_per_category[2],
     'bath': product_ids_per_category[3],
 }
+
+# # hard coding product subset booooo
+# kitchen_products = ['B0030HRU26',
+#  'B006BA7MM2',
+#  'B00COCD6TO',
+#  'B00DUHACEE',
+#  'B00EIK7ZW4',
+#  'B00ESHDGOI',
+#  'B00FMJDJ5C',
+#  'B00HHLNRVE',
+#  'B00ICPJ3GM',
+#  'B00IFRZVQI',
+#  'B00IT26M8K',
+#  'B00IY0J536',
+#  'B00J93MQ6U',
+#  'B00JMAAFW2',
+#  'B00JR39AUM',
+#  'B00KBQ1OHQ']
+# vacuum_products = ['B0006HUYGM', 'B007JN6MQC', 'B00EJQQRH6', 'B00IOEFBKS',
+#        'B0091YYUAM', 'B001J4ZOAW', 'B0056B4EZK', 'B002IPHBNE',
+#        'B000AS9IIC', 'B002D5JCXG']
+# storage_products = ['B0013CAWKM', 'B00383O2UU', 'B004FNBWQ4', 'B00CG4IX52',
+#        'B000GPVDLE', 'B000IVRTBO', 'B004R963K6', 'B0027P9516',
+#        'B005OQFLM2', 'B000A68E48']
+# bath_products = ['B00E9CQX4M', 'B002VK7D2K', 'B002MK6QKO', 'B003JTCAHK',
+#        'B001BVQJ7A', 'B00472O4YK', 'B001T4ZAX8', 'B000FGCVZQ',
+#        'B001T4ZAX8', 'B001RRG5VI']
+
+# products_in_categories = {
+#     'kitchen': kitchen_products,
+#     'vacuum': vacuum_products,
+#     'storage': storage_products,
+#     'bath': bath_products
+# }
+
 
 def hybrid_recommender(product_id_list, original_data=reviews20, n=10, ratio=0.7):
     
@@ -75,11 +105,11 @@ def hybrid_recommender(product_id_list, original_data=reviews20, n=10, ratio=0.7
     trainset = data.build_full_trainset()
 
     # fitting for UUCF
-    uucf = KNNWithMeans(k=3, sim_options={'name': 'pearson_baseline', 'user_based': True})
+    uucf = KNNWithMeans(k=1, sim_options={'name': 'pearson_baseline', 'user_based': True})
     uucf.fit(trainset)
 
     #fitting for SVD
-    svd = SVD(n_factors=40, lr_bi=0.0001, lr_qi=0.0001, reg_bi=0.7, reg_qi=0.7)
+    svd = SVD(n_factors=250, lr_bi=0.0001, lr_qi=0.0001, reg_bi=0.9, reg_qi=0.9, random_state=42)
     svd.fit(trainset)
     
     #ititialising user_predictions df
@@ -111,8 +141,7 @@ def hybrid_recommender(product_id_list, original_data=reviews20, n=10, ratio=0.7
             if item_id not in (user_recommendations or product_id_list):
                 user_recommendations.append(item_id)
                 
-    user_recommendations = [{'id':item_id, 'name': product_lookup[item_id], 'imgurl': imgurl_lookup[item_id]} 
-                            for item_id in user_recommendations]
+    user_recommendations = [{'id':item_id, 'name': product_lookup[item_id], 'imgurl': imgurl_lookup[item_id]} for item_id in user_recommendations]
     
     return user_recommendations
 
@@ -136,10 +165,6 @@ def main_page():
 @app.route('/select_products')
 def select_products():
 
-    # limit product catalog to 100 items only (top 100 products)
-    # find a way to extract category as well
-
-
     top_products_per_category = {
     'kitchen': product_ids_per_category[0],
     'vacuum': product_ids_per_category[1],
@@ -147,12 +172,18 @@ def select_products():
     'bath': product_ids_per_category[3],
     }
 
+    # products_in_categories = {
+    #     'kitchen': kitchen_products,
+    #     'vacuum': vacuum_products,
+    #     'storage': storage_products,
+    #     'bath': bath_products
+    # }
+
 
     global_product_catalog = {}
 
     for product_list in top_products_per_category:
-        global_product_catalog[product_list] = [{'id':item_id, 'name':product_lookup[item_id], 'imgurl': imgurl_lookup[item_id]}
-                                                  for item_id in top_products_per_category[product_list]]
+        global_product_catalog[product_list] = [{'id':item_id, 'name':product_lookup[item_id], 'imgurl': imgurl_lookup[item_id]} for item_id in top_products_per_category[product_list]]
 
     return flask.render_template('select_products.html',
                                  global_product_catalog=global_product_catalog)
@@ -176,4 +207,6 @@ def random_recommend():
     return flask.jsonify(random_recommendations)
 
 if __name__ == '__main__':
-    app.run()
+    HOST = '127.0.0.1'
+    PORT = 4000
+    app.run(HOST, PORT)
